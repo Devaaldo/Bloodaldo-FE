@@ -1,7 +1,14 @@
 /** @type {import('tailwindcss').Config} */
+import daisyui from "daisyui";
+
 export default {
 	content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
 	theme: {
+		// Pindahkan fontFamily ke sini (di luar extend)
+		fontFamily: {
+			sans: ["Inter", "sans-serif"],
+			display: ["Poppins", "sans-serif"],
+		},
 		extend: {
 			colors: {
 				primary: {
@@ -37,13 +44,10 @@ export default {
 					dark: "#c53030",
 				},
 			},
-			fontFamily: {
-				sans: ["Inter", "sans-serif"],
-				display: ["Poppins", "sans-serif"],
-			},
+			// fontFamily dihapus dari sini
 		},
 	},
-	plugins: [require("daisyui")],
+	plugins: [daisyui],
 	daisyui: {
 		themes: [
 			{

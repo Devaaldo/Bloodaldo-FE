@@ -1,146 +1,32 @@
-import { useState, useEffect } from "react";
-import {
-	BrowserRouter as Router,
-	Routes,
-	Route,
-	Navigate,
-} from "react-router-dom";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-
-// Context
-import { AuthProvider } from "./contexts/AuthContext";
-
-// Pages
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Dashboard from "./pages/Dashboard";
-import BloodTestForm from "./pages/BloodTestForm";
-import DetectionPage from "./pages/DetectionPage";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Navbar from "./components/common/Navbar";
+import Footer from "./components/common/Footer";
+import Home from "./pages/Home";
+import PatientFormPage from "./pages/PatientFormPage";
+import AnalysisPage from "./pages/AnalysisPage";
 import HistoryPage from "./pages/HistoryPage";
 import ReportsPage from "./pages/ReportsPage";
-import ProfilePage from "./pages/ProfilePage";
-import NotFoundPage from "./pages/NotFoundPage";
-
-// Components
-import ProtectedRoute from "./components/ProtectedRoute";
-import AdminRoute from "./components/AdminRoute";
-import Layout from "./components/Layout";
-
-// Admin Pages
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import UserManagement from "./pages/admin/UserManagement";
-import RuleManagement from "./pages/admin/RuleManagement";
-import SystemSettings from "./pages/admin/SystemSettings";
+import AdminLogin from "./pages/AdminLogin";
+import { AuthProvider } from "./context/AuthContext";
 
 function App() {
 	return (
 		<AuthProvider>
 			<Router>
-				<ToastContainer position="top-right" autoClose={3000} />
-				<Routes>
-					{/* Public Routes */}
-					<Route path="/login" element={<Login />} />
-					<Route path="/register" element={<Register />} />
-
-					{/* Protected Routes */}
-					<Route element={<Layout />}>
-						{/* User Routes */}
-						<Route
-							path="/"
-							element={
-								<ProtectedRoute>
-									<Dashboard />
-								</ProtectedRoute>
-							}
-						/>
-
-						<Route
-							path="/blood-test"
-							element={
-								<ProtectedRoute>
-									<BloodTestForm />
-								</ProtectedRoute>
-							}
-						/>
-
-						<Route
-							path="/detection"
-							element={
-								<ProtectedRoute>
-									<DetectionPage />
-								</ProtectedRoute>
-							}
-						/>
-
-						<Route
-							path="/history"
-							element={
-								<ProtectedRoute>
-									<HistoryPage />
-								</ProtectedRoute>
-							}
-						/>
-
-						<Route
-							path="/reports"
-							element={
-								<ProtectedRoute>
-									<ReportsPage />
-								</ProtectedRoute>
-							}
-						/>
-
-						<Route
-							path="/profile"
-							element={
-								<ProtectedRoute>
-									<ProfilePage />
-								</ProtectedRoute>
-							}
-						/>
-
-						{/* Admin Routes */}
-						<Route
-							path="/admin"
-							element={
-								<AdminRoute>
-									<AdminDashboard />
-								</AdminRoute>
-							}
-						/>
-
-						<Route
-							path="/admin/users"
-							element={
-								<AdminRoute>
-									<UserManagement />
-								</AdminRoute>
-							}
-						/>
-
-						<Route
-							path="/admin/rules"
-							element={
-								<AdminRoute>
-									<RuleManagement />
-								</AdminRoute>
-							}
-						/>
-
-						<Route
-							path="/admin/settings"
-							element={
-								<AdminRoute>
-									<SystemSettings />
-								</AdminRoute>
-							}
-						/>
-					</Route>
-
-					{/* Not Found Route */}
-					<Route path="*" element={<NotFoundPage />} />
-				</Routes>
+				<div className="flex flex-col min-h-screen bg-gray-50">
+					<Navbar />
+					<main className="flex-grow container mx-auto px-4 py-8">
+						<Routes>
+							<Route path="/" element={<Home />} />
+							<Route path="/patient-form" element={<PatientFormPage />} />
+							<Route path="/analysis/:id" element={<AnalysisPage />} />
+							<Route path="/history" element={<HistoryPage />} />
+							<Route path="/reports" element={<ReportsPage />} />
+							<Route path="/admin" element={<AdminLogin />} />
+						</Routes>
+					</main>
+					<Footer />
+				</div>
 			</Router>
 		</AuthProvider>
 	);
