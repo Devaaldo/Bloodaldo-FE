@@ -20,7 +20,13 @@ const AnalysisPage = () => {
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState(null);
 	const [patientData, setPatientData] = useState(null);
-	const [analysisResult, setAnalysisResult] = useState(null);
+	const [analysisResult, setAnalysisResult] = useState({
+		diagnosis: "",
+		mainProbability: 0,
+		explanation: "",
+		recommendations: [],
+		probabilities: [], // Initialize with empty array to prevent undefined
+	});
 
 	// COLORS for charts
 	const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
@@ -28,17 +34,53 @@ const AnalysisPage = () => {
 	useEffect(() => {
 		const fetchData = async () => {
 			try {
+				setIsLoading(true);
 				// Fetch patient data
 				const patientResponse = await axios.get(
 					`http://localhost:5000/api/patients/${id}`
 				);
-				setPatientData(patientResponse.data);
+
+				// Log response for debugging
+				console.log("Patient API Response:", patientResponse.data);
+
+				if (patientResponse.data && patientResponse.data.success) {
+					setPatientData(patientResponse.data.data);
+				} else if (patientResponse.data) {
+					// If API returns data directly without success wrapper
+					setPatientData(patientResponse.data);
+				} else {
+					throw new Error("Failed to fetch patient data");
+				}
 
 				// Fetch analysis result
 				const analysisResponse = await axios.get(
 					`http://localhost:5000/api/analysis/${id}`
 				);
-				setAnalysisResult(analysisResponse.data);
+
+				// Log response for debugging
+				console.log("Analysis API Response:", analysisResponse.data);
+
+				if (analysisResponse.data && analysisResponse.data.success) {
+					// Ensure probabilities is always an array
+					const result = analysisResponse.data.data;
+					setAnalysisResult({
+						...result,
+						probabilities: Array.isArray(result.probabilities)
+							? result.probabilities
+							: [],
+					});
+				} else if (analysisResponse.data) {
+					// If API returns data directly without success wrapper
+					const result = analysisResponse.data;
+					setAnalysisResult({
+						...result,
+						probabilities: Array.isArray(result.probabilities)
+							? result.probabilities
+							: [],
+					});
+				} else {
+					throw new Error("Failed to fetch analysis data");
+				}
 			} catch (err) {
 				console.error("Error fetching data:", err);
 				setError(
@@ -72,16 +114,14 @@ const AnalysisPage = () => {
 		);
 	}
 
-	if (!patientData || !analysisResult) {
+	if (!patientData) {
 		return (
 			<div
 				className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative"
 				role="alert"
 			>
 				<strong className="font-bold">Data tidak ditemukan! </strong>
-				<span className="block sm:inline">
-					Data pasien atau hasil analisis tidak ditemukan.
-				</span>
+				<span className="block sm:inline">Data pasien tidak ditemukan.</span>
 				<Link
 					to="/patient-form"
 					className="text-blue-600 hover:underline mt-2 block"
@@ -92,7 +132,7 @@ const AnalysisPage = () => {
 		);
 	}
 
-	// Prepare chart data
+	// Prepare chart data safely
 	const bloodParameterData = [
 		{
 			name: "Hemoglobin",
@@ -125,11 +165,25 @@ const AnalysisPage = () => {
 		},
 	];
 
-	// Prepare probabilities data for pie chart
+	// THIS IS LINE 129 - Prepare probabilities data for pie chart - Using safe array access
+	// Make sure we're mapping over a valid array - probabilities is guaranteed to be an array now
 	const probabilityData = analysisResult.probabilities.map((item) => ({
-		name: item.disease,
-		value: item.probability * 100, // Convert to percentage
+		name: item.disease || "Unknown",
+		value: (item.probability || 0) * 100, // Convert to percentage
 	}));
+
+	// Add a default entry if the probabilities array is empty
+	if (probabilityData.length === 0) {
+		probabilityData.push({
+			name: analysisResult.diagnosis || "Unknown",
+			value: (analysisResult.mainProbability || 0.9) * 100,
+		});
+	}
+
+	// Ensure recommendations is an array
+	const recommendations = Array.isArray(analysisResult.recommendations)
+		? analysisResult.recommendations
+		: [analysisResult.recommendations].filter(Boolean);
 
 	return (
 		<div className="max-w-5xl mx-auto">
@@ -197,11 +251,11 @@ const AnalysisPage = () => {
 									adalah:
 								</p>
 								<h3 className="text-lg font-bold text-blue-800 mt-1">
-									{analysisResult.diagnosis}
+									{analysisResult.diagnosis || "Tidak dapat ditentukan"}
 								</h3>
 								<p className="text-sm text-blue-700 mt-2">
 									dengan probabilitas{" "}
-									{(analysisResult.mainProbability * 100).toFixed(2)}%
+									{((analysisResult.mainProbability || 0) * 100).toFixed(2)}%
 								</p>
 							</div>
 						</div>
@@ -211,18 +265,25 @@ const AnalysisPage = () => {
 						<h3 className="text-lg font-semibold text-gray-700 mb-3">
 							Penjelasan Diagnosa
 						</h3>
-						<p className="text-gray-600">{analysisResult.explanation}</p>
+						<p className="text-gray-600">
+							{analysisResult.explanation ||
+								"Tidak ada penjelasan detail yang tersedia."}
+						</p>
 					</div>
 
 					<div className="mb-6">
 						<h3 className="text-lg font-semibold text-gray-700 mb-3">
 							Rekomendasi
 						</h3>
-						<ul className="list-disc pl-5 text-gray-600 space-y-1">
-							{analysisResult.recommendations.map((recommendation, index) => (
-								<li key={index}>{recommendation}</li>
-							))}
-						</ul>
+						{recommendations.length > 0 ? (
+							<ul className="list-disc pl-5 text-gray-600 space-y-1">
+								{recommendations.map((recommendation, index) => (
+									<li key={index}>{recommendation}</li>
+								))}
+							</ul>
+						) : (
+							<p className="text-gray-600">Tidak ada rekomendasi spesifik.</p>
+						)}
 					</div>
 				</div>
 

@@ -16,15 +16,36 @@ const HistoryPage = () => {
 		dateTo: "",
 	});
 
-	const { isAuthenticated } = useAuth();
+	const { isAuthenticated } = useAuth() || { isAuthenticated: false };
 
 	// Fetch patient history
 	useEffect(() => {
 		const fetchPatients = async () => {
 			try {
+				setIsLoading(true);
 				const response = await axios.get("http://localhost:5000/api/patients");
-				setPatients(response.data);
-				setFilteredPatients(response.data);
+
+				// Check what's coming from the API
+				console.log("API Response:", response.data);
+
+				// Make sure we're getting an array of patients
+				let patientsData = [];
+
+				if (response.data && response.data.success) {
+					// If response has the success and data properties
+					patientsData = Array.isArray(response.data.data)
+						? response.data.data
+						: [];
+				} else if (Array.isArray(response.data)) {
+					// If response is directly an array
+					patientsData = response.data;
+				} else {
+					console.error("Unexpected API response format:", response.data);
+					setError("Format data dari server tidak sesuai.");
+				}
+
+				setPatients(patientsData);
+				setFilteredPatients(patientsData);
 			} catch (err) {
 				console.error("Error fetching patients:", err);
 				setError("Terjadi kesalahan saat mengambil data pasien.");
@@ -38,16 +59,21 @@ const HistoryPage = () => {
 
 	// Handle search & filters
 	useEffect(() => {
+		if (!Array.isArray(patients)) {
+			console.error("patients is not an array:", patients);
+			return;
+		}
+
 		// Apply all filters
-		let results = patients;
+		let results = [...patients];
 
 		// Search term filter
 		if (searchTerm) {
 			const term = searchTerm.toLowerCase();
 			results = results.filter(
 				(patient) =>
-					patient.name.toLowerCase().includes(term) ||
-					patient.diagnosis.toLowerCase().includes(term)
+					(patient.name && patient.name.toLowerCase().includes(term)) ||
+					(patient.diagnosis && patient.diagnosis.toLowerCase().includes(term))
 			);
 		}
 
@@ -83,10 +109,12 @@ const HistoryPage = () => {
 		setFilteredPatients(results);
 	}, [searchTerm, filters, patients]);
 
-	// Get unique diagnoses for filter dropdown
-	const uniqueDiagnoses = [
-		...new Set(patients.map((patient) => patient.diagnosis)),
-	].filter(Boolean);
+	// Get unique diagnoses for filter dropdown (safely)
+	const uniqueDiagnoses = Array.isArray(patients)
+		? Array.from(
+				new Set(patients.map((patient) => patient.diagnosis).filter(Boolean))
+		  )
+		: [];
 
 	// Handle search change
 	const handleSearchChange = (e) => {
@@ -110,7 +138,7 @@ const HistoryPage = () => {
 		});
 	};
 
-	// Delete patient (admin only)
+	// Delete patient
 	const handleDeletePatient = async (id) => {
 		if (!isAuthenticated) {
 			alert("Anda harus login sebagai admin untuk menghapus data pasien.");
@@ -122,12 +150,31 @@ const HistoryPage = () => {
 		}
 
 		try {
-			await axios.delete(`http://localhost:5000/api/patients/${id}`);
-			// Update state to remove deleted patient
-			setPatients(patients.filter((patient) => patient.id !== id));
+			const response = await axios.delete(
+				`http://localhost:5000/api/patients/${id}`,
+				{
+					headers: {
+						Authorization: `Bearer ${localStorage.getItem("bloodaldo_token")}`,
+					},
+				}
+			);
+
+			if (response.data && response.data.success) {
+				// Update state to remove deleted patient
+				setPatients((prevPatients) =>
+					prevPatients.filter((patient) => patient.id !== id)
+				);
+				alert("Data pasien berhasil dihapus");
+			} else {
+				throw new Error("Failed to delete patient");
+			}
 		} catch (err) {
 			console.error("Error deleting patient:", err);
-			alert("Terjadi kesalahan saat menghapus data pasien.");
+			if (err.response && err.response.status === 401) {
+				alert("Anda harus login sebagai admin untuk menghapus data pasien.");
+			} else {
+				alert("Terjadi kesalahan saat menghapus data pasien.");
+			}
 		}
 	};
 
@@ -150,6 +197,11 @@ const HistoryPage = () => {
 			</div>
 		);
 	}
+
+	// Ensure filteredPatients is an array
+	const patientsToDisplay = Array.isArray(filteredPatients)
+		? filteredPatients
+		: [];
 
 	return (
 		<div className="max-w-6xl mx-auto">
@@ -259,8 +311,8 @@ const HistoryPage = () => {
 				<div className="p-4">
 					<div className="mb-4 flex justify-between items-center">
 						<p className="text-gray-600">
-							Menampilkan {filteredPatients.length} dari {patients.length}{" "}
-							pasien
+							Menampilkan {patientsToDisplay.length} dari{" "}
+							{Array.isArray(patients) ? patients.length : 0} pasien
 						</p>
 						<Link
 							to="/patient-form"
@@ -270,7 +322,7 @@ const HistoryPage = () => {
 						</Link>
 					</div>
 
-					{filteredPatients.length === 0 ? (
+					{patientsToDisplay.length === 0 ? (
 						<div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-md">
 							Tidak ada data pasien yang sesuai dengan filter.
 						</div>
@@ -297,7 +349,7 @@ const HistoryPage = () => {
 									</tr>
 								</thead>
 								<tbody className="bg-white divide-y divide-gray-200">
-									{filteredPatients.map((patient) => (
+									{patientsToDisplay.map((patient) => (
 										<tr key={patient.id} className="hover:bg-gray-50">
 											<td className="px-6 py-4 whitespace-nowrap">
 												<div className="font-medium text-gray-900">
@@ -337,14 +389,12 @@ const HistoryPage = () => {
 													>
 														Lihat
 													</Link>
-													{isAuthenticated && (
-														<button
-															onClick={() => handleDeletePatient(patient.id)}
-															className="text-red-600 hover:text-red-900"
-														>
-															Hapus
-														</button>
-													)}
+													<button
+														onClick={() => handleDeletePatient(patient.id)}
+														className="text-red-600 hover:text-red-900"
+													>
+														Hapus
+													</button>
 												</div>
 											</td>
 										</tr>
