@@ -1,6 +1,5 @@
-# Bloodaldo Frontend
+# Bloodaldo Frontend - Sistem Pakar untuk Deteksi Dini Penyakit melalui Data Bank Darah
 
-![Bloodaldo Logo](public/logo.png)
 
 ## 📋 Deskripsi Proyek
 
